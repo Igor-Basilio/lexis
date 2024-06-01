@@ -21,6 +21,9 @@ var (
 	DRAW_TEXT             string   = ""
 	DRAW_SEARCH_BOX       bool     = false
 	SEARCH_BOX_TEXT       string   = ""
+    NORMAL_MODE                    = true 
+    CMD_RUNNING                    = false
+    CMD_DIGIT                      = 0 
 )
 
 const (

@@ -76,3 +76,31 @@ func DrawFunctionUntilCond(f func(), cond bool) {
 
 } */
 
+func ToDigit( char int ) int {
+
+    if char == 48 {
+        return 0
+    }else if char == 49 {
+        return 1
+    }else if char == 50 {
+        return 2
+    }else if char == 51 {
+        return 3
+    }else if char == 52 {
+        return 4
+    }else if char == 53 {
+        return 5
+    }else if char == 54 {
+        return 6
+    }else if char == 55 {
+        return 7
+    }else if char == 56 {
+        return 8
+    }else if char == 57 {
+        return 9
+    }else {
+        return -1
+    }
+
+}
+

@@ -1,6 +1,7 @@
 package control
 
 import (
+    "unicode"
 	"fmt"
 	"os"
 	"os/user"
@@ -17,6 +18,8 @@ var Cur_line int32 = 1
 var Cur_col int32 = 0
 var Spacing float32 = 0
 var FIRST_KEY_PRESSED int32
+var SECOND_KEY_PRESSED int32
+var set_values bool = true
 
 func Control_manager(camera *rl.Camera2D,
 	cursor *rl.Vector2, sc *rl.Color, c map[int]CONST.Data, w *bool,
@@ -47,14 +50,125 @@ func Control_manager(camera *rl.Camera2D,
 
 	if !CONST.DRAW_SEARCH_BOX {
 
-		control_zoom(camera)
-		control_camera(camera, fonts /* , c */)
-		arr_keyMovement(cursor, sc, c, fonts)
-		textManagementFunctionalities(c, cursor, fonts, sc)
-		fileFunctionalities(c, fonts)
+        if !CONST.NORMAL_MODE {
+
+            textManagementFunctionalities(c, cursor, fonts, sc)
+            not_normal_mode() 
+
+        } else {
+
+            control_zoom(camera)
+            control_camera(camera, fonts )
+            if !CONST.CMD_RUNNING {
+                arr_keyMovement(cursor, sc, c, fonts)
+            }
+            fileFunctionalities(c, fonts)
+            normal_mode( sc, c, fonts, cursor )
+            
+        }
 
 	}
 
+}
+
+// Moves the cursor (x, y) lines and columns
+// respectively and relative to the current cursor
+// position, also checks if the movement is possible 
+// aka if the len of the line is shorther than the movement
+// cursor moves to last possible column
+func moveCursorToRelative( sc *rl.Color, c map[int]CONST.Data,  fonts *[CONST.NUMBER_OF_FONTS]rl.Font,
+    cursor *rl.Vector2, row int, col int ) {
+
+	h_off := float32(fonts[CONST.SELECTED_FONT].Chars.Image.Width)
+	y_off := float32(fonts[CONST.SELECTED_FONT].Chars.Image.Height)
+ 
+    d, ok := c[int(Cur_line)]
+    if ok {
+
+        c[int(Cur_line)] = CONST.Data{ Line: d.Line,
+        Selected: false }
+
+        if int(Cur_col) + col > len(d.Line) {
+            Cur_col = int32(len(d.Line)) 
+        }else if Cur_col + int32(col) < 0 {
+            Cur_col = 0
+        }else {
+            Cur_col += int32(col)
+        }
+
+        if Cur_line + int32(row) < 1 {
+            Cur_line = 1
+        }else if int(Cur_line) + row > len(c) {
+            Cur_line = int32(len(c))
+        }else {
+            Cur_line += int32(row)
+        }
+
+        d_n, ok := c[int(Cur_line)] 
+        if ok {
+            c[int(Cur_line)] = CONST.Data{ Line: d_n.Line, Selected: true }
+        }
+            
+    }
+
+    *cursor = rl.Vector2{X: float32(Cur_col) * ( h_off + Spacing ),
+    Y: float32( Cur_line - 1 ) *  y_off }
+
+    async.Debounce_Ticker.Reset(async.DEBOUNCE_TIMER)
+    CONST.DEBOUNCE_MOVER = true
+    async.Flashing_Ticker.Reset(async.FLASHING_TIMER)
+    *sc = rl.Yellow
+
+}
+
+func not_normal_mode() {
+
+    if rl.IsKeyPressed(rl.KeyEscape) {   
+        CONST.NORMAL_MODE = true 
+    }
+
+}
+
+func normal_mode ( sc *rl.Color, c map[int]CONST.Data,
+    fonts *[CONST.NUMBER_OF_FONTS]rl.Font, cursor *rl.Vector2 ) {
+
+    if rl.IsKeyPressed(rl.KeyI) { 
+        CONST.NORMAL_MODE = false 
+    }else if unicode.IsDigit( FIRST_KEY_PRESSED ) || CONST.CMD_RUNNING {
+
+        
+        // TODO: Fix breaking on going off camera.
+        if k := rl.GetKeyPressed(); ( k  != 0 ||
+            FIRST_KEY_PRESSED != 0 ) && !set_values {
+
+            if k == rl.KeyJ || FIRST_KEY_PRESSED == rl.KeyJ {
+                moveCursorToRelative( sc, c, fonts, cursor,
+                h.ToDigit(int(CONST.CMD_DIGIT)), 0 )
+            } else if k == rl.KeyK || FIRST_KEY_PRESSED == rl.KeyK {
+                moveCursorToRelative( sc, c, fonts, cursor, 
+                -h.ToDigit(int(CONST.CMD_DIGIT)), 0 )
+            } else if k == rl.KeyH || FIRST_KEY_PRESSED == rl.KeyH {
+                moveCursorToRelative( sc, c, fonts, cursor,  0,
+                h.ToDigit(-int(CONST.CMD_DIGIT)) )
+            } else if k == rl.KeyL || FIRST_KEY_PRESSED == rl.KeyL {    
+                moveCursorToRelative( sc, c, fonts, cursor, 0,
+                h.ToDigit(int(CONST.CMD_DIGIT)) )
+            }  
+
+            set_values = true
+            CONST.CMD_RUNNING = false
+            return 
+
+        } 
+
+        if set_values {
+            set_values = false
+            CONST.CMD_DIGIT = int(FIRST_KEY_PRESSED)
+        } 
+
+        CONST.CMD_RUNNING = true
+
+    }
 }
 
 func fileFunctionalities(c map[int]CONST.Data,
@@ -263,7 +377,8 @@ func arr_keyMovement(cursor *rl.Vector2, sc *rl.Color, c map[int]CONST.Data,
 	h_off := float32(fonts[CONST.SELECTED_FONT].Chars.Image.Width)
 	y_off := float32(fonts[CONST.SELECTED_FONT].Chars.Image.Height)
 
-	if rl.IsKeyPressed(rl.KeyRight) {
+	if rl.IsKeyPressed(rl.KeyRight) ||
+         rl.IsKeyPressed(rl.KeyL) {
 
 		pred_curcol := Cur_col + 1
 		d, ok := c[int(Cur_line)]
@@ -283,7 +398,8 @@ func arr_keyMovement(cursor *rl.Vector2, sc *rl.Color, c map[int]CONST.Data,
 			}
 		}
 
-	} else if rl.IsKeyPressed(rl.KeyDown) {
+	} else if rl.IsKeyPressed(rl.KeyDown) || 
+    rl.IsKeyPressed(rl.KeyJ) {
 
 		pred_curline := Cur_line + 1
 		d, ok := c[int(pred_curline)]
@@ -315,7 +431,8 @@ func arr_keyMovement(cursor *rl.Vector2, sc *rl.Color, c map[int]CONST.Data,
 
 		}
 
-	} else if rl.IsKeyPressed(rl.KeyUp) && Cur_line >= 2 {
+	} else if ( rl.IsKeyPressed(rl.KeyUp) ||  rl.IsKeyPressed(rl.KeyK) ) && 
+         Cur_line >= 2 {
 
 		d, ok_d := c[int(Cur_line)]
 		l, ok_l := c[int(Cur_line-1)]
@@ -345,7 +462,8 @@ func arr_keyMovement(cursor *rl.Vector2, sc *rl.Color, c map[int]CONST.Data,
 
 		}
 
-	} else if rl.IsKeyPressed(rl.KeyLeft) && Cur_col >= 1 {
+	} else if ( rl.IsKeyPressed(rl.KeyLeft) || rl.IsKeyPressed(rl.KeyH) ) &&
+            Cur_col >= 1 {
 
 		cursor.X -= h_off + Spacing
 		async.Debounce_Ticker.Reset(async.DEBOUNCE_TIMER)

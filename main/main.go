@@ -33,7 +33,7 @@ func main() {
 		log.Printf("Usage : Lexis <file_path> <...>")
 		os.Exit(0)
 	}
-
+    
 	CONST.CURRENT_FILE = "./" + args[0]
 
 	file, err := os.Open(CONST.CURRENT_FILE)
@@ -70,6 +70,7 @@ func main() {
 	rl.SetTargetFPS(60)
 	rl.InitWindow(screenWidth, screenHeight, "Lexis")
 
+    rl.SetExitKey(rl.KeyDelete)
 	control.Spacing = 2
 	CONST.END_POINT_POSITION = rl.GetScreenHeight()
 
