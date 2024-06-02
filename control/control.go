@@ -72,6 +72,60 @@ func Control_manager(camera *rl.Camera2D,
 }
 
 // Moves the cursor (x, y) lines and columns
+// respectively and not relative to the current cursor
+// position, also checks if the movement is possible 
+// aka if the len of the line is shorther than the movement
+// cursor moves to last possible column
+func moveCursorToGlobal ( sc *rl.Color, c map[int]CONST.Data,  fonts *[CONST.NUMBER_OF_FONTS]rl.Font,
+    cursor *rl.Vector2, row int, col int ) {
+
+	h_off := float32(fonts[CONST.SELECTED_FONT].Chars.Image.Width)
+	y_off := float32(fonts[CONST.SELECTED_FONT].Chars.Image.Height)
+ 
+    d, ok := c[int(Cur_line)]
+    if ok {
+
+        c[int(Cur_line)] = CONST.Data{ Line: d.Line,
+        Selected: false }
+        
+        if col > len(d.Line) {
+            Cur_col = int32(len(d.Line))
+        }else if col < 0 {
+            Cur_col = 0
+        }else {
+            Cur_col = int32(col)
+        }
+
+        if row < 1 {
+            Cur_line = 1
+        }else if row > len(c) {
+            Cur_line = int32(len(c))
+        }else {
+            Cur_line = int32(row)
+        }
+
+        d_n, ok := c[int(Cur_line)] 
+        if ok {
+            c[int(Cur_line)] = CONST.Data{ Line: d_n.Line, Selected: true }
+        }
+
+        if len(d_n.Line) < int(Cur_col) {
+            Cur_col = int32(len(d_n.Line))
+        }
+            
+    }
+
+    *cursor = rl.Vector2{X: float32(Cur_col) * ( h_off + Spacing ),
+    Y: float32( Cur_line - 1 ) *  y_off }
+
+    async.Debounce_Ticker.Reset(async.DEBOUNCE_TIMER)
+    CONST.DEBOUNCE_MOVER = true
+    async.Flashing_Ticker.Reset(async.FLASHING_TIMER)
+    *sc = rl.Yellow
+
+}
+
+// Moves the cursor (x, y) lines and columns
 // respectively and relative to the current cursor
 // position, also checks if the movement is possible 
 // aka if the len of the line is shorther than the movement
@@ -108,6 +162,10 @@ func moveCursorToRelative( sc *rl.Color, c map[int]CONST.Data,  fonts *[CONST.NU
         if ok {
             c[int(Cur_line)] = CONST.Data{ Line: d_n.Line, Selected: true }
         }
+
+        if len(d_n.Line) < int(Cur_col) {
+            Cur_col = int32(len(d_n.Line))
+        }
             
     }
 
@@ -132,10 +190,31 @@ func not_normal_mode() {
 func normal_mode ( sc *rl.Color, c map[int]CONST.Data,
     fonts *[CONST.NUMBER_OF_FONTS]rl.Font, cursor *rl.Vector2 ) {
 
+    d, ok := c[int(Cur_line)]
+
     if rl.IsKeyPressed(rl.KeyI) { 
         CONST.NORMAL_MODE = false 
-    }else if unicode.IsDigit( FIRST_KEY_PRESSED ) || CONST.CMD_RUNNING {
+    }else if rl.IsKeyDown(rl.KeyLeftShift) && 
+    FIRST_KEY_PRESSED == rl.KeyFour && ok {
+        moveCursorToRelative( sc, c, fonts, cursor, 0, len(d.Line))
+    }else if FIRST_KEY_PRESSED == rl.KeyZero { 
+        moveCursorToRelative( sc, c, fonts, cursor, 0, -len(d.Line))
+    }else if rl.IsKeyDown(rl.KeyLeftShift) &&
+    FIRST_KEY_PRESSED == rl.KeyMinus {
 
+        d, ok := c[int(Cur_line)]  
+        if ok {
+            
+            for i, ch := range d.Line { 
+                if ch != rl.KeySpace && ch != rl.KeyTab {
+                    moveCursorToGlobal( sc, c, fonts, cursor, int(Cur_line), i ) 
+                    break     
+                }
+            }
+            
+        }
+
+    }else if unicode.IsDigit( FIRST_KEY_PRESSED ) || CONST.CMD_RUNNING {
         
         // TODO: Fix breaking on going off camera.
         if k := rl.GetKeyPressed(); ( k  != 0 ||
@@ -149,7 +228,7 @@ func normal_mode ( sc *rl.Color, c map[int]CONST.Data,
                 -h.ToDigit(int(CONST.CMD_DIGIT)), 0 )
             } else if k == rl.KeyH || FIRST_KEY_PRESSED == rl.KeyH {
                 moveCursorToRelative( sc, c, fonts, cursor,  0,
-                h.ToDigit(-int(CONST.CMD_DIGIT)) )
+                -h.ToDigit(int(CONST.CMD_DIGIT)) )
             } else if k == rl.KeyL || FIRST_KEY_PRESSED == rl.KeyL {    
                 moveCursorToRelative( sc, c, fonts, cursor, 0,
                 h.ToDigit(int(CONST.CMD_DIGIT)) )
@@ -169,6 +248,7 @@ func normal_mode ( sc *rl.Color, c map[int]CONST.Data,
         CONST.CMD_RUNNING = true
 
     }
+
 }
 
 func fileFunctionalities(c map[int]CONST.Data,
@@ -254,13 +334,13 @@ func control_zoom(camera *rl.Camera2D) {
 		rl.IsKeyDown(rl.KeyMinus) {
 
 		var zoomIncrement float32 = 0.125
-		camera.Zoom += zoomIncrement
+		camera.Zoom -= zoomIncrement
 
-	} else if rl.IsKeyDown(rl.KeyLeftShift) &&
-		rl.IsKeyDown(rl.KeyMinus) {
+	} else if rl.IsKeyDown(rl.KeyLeftControl) &&
+		rl.IsKeyDown(rl.KeyEqual) {
 
 		var zoomIncrement float32 = 0.125
-		camera.Zoom -= zoomIncrement
+		camera.Zoom += zoomIncrement
 	}
 
 }
