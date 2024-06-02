@@ -47,3 +47,8 @@ func DrawMainUI(sw int32, sh int32, camera *rl.Camera2D,
 		CONST.DRAW_SEARCH_BOX)
 
 }
+
+
+
+
+
