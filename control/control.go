@@ -62,12 +62,44 @@ func Control_manager(camera *rl.Camera2D,
             if !CONST.CMD_RUNNING {
                 arr_keyMovement(cursor, sc, c, fonts)
             }
-            fileFunctionalities(c, fonts)
+            fileFunctionalities(c, fonts, camera)
             normal_mode( sc, c, fonts, cursor )
             
         }
 
 	}
+
+}
+
+func CheckCursorInCamera( fonts *[CONST.NUMBER_OF_FONTS]rl.Font, 
+    camera *rl.Camera2D, c map[int]CONST.Data ) {
+ 
+	y_off := int(fonts[CONST.SELECTED_FONT].Chars.Image.Height)
+    logo_size := 2 * y_off   
+
+    screen_height := rl.GetScreenHeight()
+    constant_unt := y_off * int(Cur_line) + logo_size
+    screen_count := int(constant_unt /  screen_height)
+
+    camera.Target.Y = float32(screen_count * screen_height)
+    checkCameraOnlyShowingBuffer(fonts, camera, c) 
+
+}
+
+func checkCameraOnlyShowingBuffer( fonts *[CONST.NUMBER_OF_FONTS]rl.Font,
+    camera *rl.Camera2D, c map[int]CONST.Data ) {
+
+	y_off := int(fonts[CONST.SELECTED_FONT].Chars.Image.Height)
+
+    screen_height := rl.GetScreenHeight()
+    logo_size := 2 * y_off   
+    constant_unt := y_off * int(Cur_line) + logo_size
+    constant_afr := len(c) * y_off + logo_size
+        
+    if (constant_unt + screen_height > constant_afr) && Cur_line >= 
+         GetAmountOfLinesOnScreen(camera,  fonts) { 
+        camera.Target.Y = float32(constant_unt - ((constant_unt + screen_height) - constant_afr))
+    }
 
 }
 
@@ -214,45 +246,60 @@ func normal_mode ( sc *rl.Color, c map[int]CONST.Data,
             
         }
 
-    }else if unicode.IsDigit( FIRST_KEY_PRESSED ) || CONST.CMD_RUNNING {
+    }else if rl.IsKeyDown(rl.KeyLeftShift) && 
+    FIRST_KEY_PRESSED == rl.KeyG {
+        moveCursorToGlobal( sc, c, fonts, cursor, len(c), int(Cur_col))
+    }else {
+
+        if unicode.IsDigit( FIRST_KEY_PRESSED ) || CONST.CMD_RUNNING {
+            
+            if k := rl.GetKeyPressed(); ( k  != 0 ||
+                FIRST_KEY_PRESSED != 0 ) && !set_values {
+
+                if k == rl.KeyJ || FIRST_KEY_PRESSED == rl.KeyJ {
+                    moveCursorToRelative( sc, c, fonts, cursor,
+                    h.ToDigit(int(CONST.CMD_DIGIT)), 0 )
+                } else if k == rl.KeyK || FIRST_KEY_PRESSED == rl.KeyK {
+                    moveCursorToRelative( sc, c, fonts, cursor, 
+                    -h.ToDigit(int(CONST.CMD_DIGIT)), 0 )
+                } else if k == rl.KeyH || FIRST_KEY_PRESSED == rl.KeyH {
+                    moveCursorToRelative( sc, c, fonts, cursor,  0,
+                    -h.ToDigit(int(CONST.CMD_DIGIT)) )
+                } else if k == rl.KeyL || FIRST_KEY_PRESSED == rl.KeyL {    
+                    moveCursorToRelative( sc, c, fonts, cursor, 0,
+                    h.ToDigit(int(CONST.CMD_DIGIT)) )
+                }  
+
+                set_values = true
+                CONST.CMD_RUNNING = false
+                return 
+
+            } 
+
+            if set_values {
+                set_values = false
+                CONST.CMD_DIGIT = int(FIRST_KEY_PRESSED)
+            } 
+
+            CONST.CMD_RUNNING = true
+
+        }else {
+  
+           if FIRST_KEY_PRESSED == rl.KeyG {
+
+
+                fmt.Print("lelo")
+
+           }
         
-        // TODO: Fix breaking on going off camera.
-        if k := rl.GetKeyPressed(); ( k  != 0 ||
-            FIRST_KEY_PRESSED != 0 ) && !set_values {
-
-            if k == rl.KeyJ || FIRST_KEY_PRESSED == rl.KeyJ {
-                moveCursorToRelative( sc, c, fonts, cursor,
-                h.ToDigit(int(CONST.CMD_DIGIT)), 0 )
-            } else if k == rl.KeyK || FIRST_KEY_PRESSED == rl.KeyK {
-                moveCursorToRelative( sc, c, fonts, cursor, 
-                -h.ToDigit(int(CONST.CMD_DIGIT)), 0 )
-            } else if k == rl.KeyH || FIRST_KEY_PRESSED == rl.KeyH {
-                moveCursorToRelative( sc, c, fonts, cursor,  0,
-                -h.ToDigit(int(CONST.CMD_DIGIT)) )
-            } else if k == rl.KeyL || FIRST_KEY_PRESSED == rl.KeyL {    
-                moveCursorToRelative( sc, c, fonts, cursor, 0,
-                h.ToDigit(int(CONST.CMD_DIGIT)) )
-            }  
-
-            set_values = true
-            CONST.CMD_RUNNING = false
-            return 
-
-        } 
-
-        if set_values {
-            set_values = false
-            CONST.CMD_DIGIT = int(FIRST_KEY_PRESSED)
-        } 
-
-        CONST.CMD_RUNNING = true
+        }
 
     }
 
 }
 
 func fileFunctionalities(c map[int]CONST.Data,
-	fonts *[CONST.NUMBER_OF_FONTS]rl.Font) {
+	fonts *[CONST.NUMBER_OF_FONTS]rl.Font, camera *rl.Camera2D) {
 
 	font_height := fonts[CONST.SELECTED_FONT].Chars.Image.Height
 	var num_bytes int = 0
@@ -320,10 +367,27 @@ func fileFunctionalities(c map[int]CONST.Data,
 
 	}
 
+	y_off := int(fonts[CONST.SELECTED_FONT].Chars.Image.Height)
+
+    screen_height := rl.GetScreenHeight()
+    logo_size := 2 * y_off   
+    constant_unt := y_off * int(Cur_line) + logo_size
+    constant_afr := len(c) * y_off + logo_size
+    screen_count := int(constant_unt / screen_height) 
+
+    var pos float32
+
+    if constant_unt + screen_height > constant_afr  { 
+       pos = camera.Target.Y + float32( screen_height - int(font_height) ) 
+    } else {
+       pos = float32((rl.GetScreenHeight() - int(font_height))) + float32( screen_height * screen_count ) 
+    }
+
+
 	h.DrawTextForSpecifiedTime(
 		" Bytes Written : "+fmt.Sprint(num_bytes)+" B",
 		1*time.Second+500*time.Millisecond,
-		rl.Vector2{X: 0, Y: float32(rl.GetScreenHeight()) - float32(font_height)},
+		rl.Vector2{X: 0, Y: pos },
 		&has_written, fonts[CONST.SELECTED_FONT], rl.Black, Spacing)
 
 }
@@ -794,3 +858,4 @@ func deleteCharAtCol(line int32, col int32,
 	return c
 
 }
+

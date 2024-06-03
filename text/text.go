@@ -54,7 +54,7 @@ func DrawFileText(c map[int]CONST.Data, selected_color *rl.Color,
 	// Draw line that separates line numbers and file text.
 	rl.DrawLine(int32(h_off*float32(n_offset+1)), int32(2*y_off),
 		int32(h_off*float32(n_offset+1)),
-		int32(CONST.END_POINT_POSITION), CONST.LINE_COLOR)
+		int32( (len(c) + 2) * int(y_off)), CONST.LINE_COLOR)
 
 }
 

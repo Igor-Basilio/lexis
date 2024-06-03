@@ -124,6 +124,8 @@ func main() {
 			&cursor_position, &selected_color,
 			content, &White, &fonts)
 
+        control.CheckCursorInCamera(&fonts, &camera, content)
+
 		rl.EndMode2D() // 2D
 
 		rl.EndDrawing() // Draw
